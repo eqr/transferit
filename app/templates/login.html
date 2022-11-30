@@ -1,0 +1,9 @@
+<!--login.html-->
+
+{{template "header.html" .}}
+<form action="/login" method="post">
+	<input type="text" name="login" class="fadeIn second" placeholder="login">
+	<input type="password" name="password" class="fadeIn third" placeholder="password">
+	<input type="submit" class="fadeIn fourth" value="Log In">
+  </form>
+{{template "footer.html"}}

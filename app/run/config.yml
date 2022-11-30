@@ -1,0 +1,20 @@
+database:
+  path: streams.db
+
+server:
+  host: localhost
+  port: 8081
+  internalPort: 8082
+
+workdir:
+  path: "./data"
+
+templates:
+  path: "../templates"
+
+deploy:
+  host: localhost
+  url: "http://localhost:8081"
+
+jwt:
+  secret: secret

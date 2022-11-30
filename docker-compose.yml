@@ -1,0 +1,9 @@
+version: '3.9'
+services:
+  server:
+    build: .
+    image: tranferit
+    container_name: transferit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:8082"

@@ -3,27 +3,24 @@
 test:
 	go test ./...
 
-
 .PHONY: dockerize
 dockerize:
-	docker build -t app .
-
+	docker build -t trasferit .
 
 .PHONY: run-dockerized
 run-dockerized:
-	docker run -p 8080:8080 app
-
+	docker run -p 8080:8080 transferit
 
 .PHONY: start
 start:
 	docker-compose build
-	docker network create app-network
+	docker network create transferit-network
 	docker-compose up -d
 
 .PHONY: stop
 stop:
 	docker-compose down
-	docker network rm app-network
+	docker network rm transferit-network
 
 build:
 	docker-compose build
@@ -34,4 +31,4 @@ run:
 deploy: build run
 
 connect:
-	docker exec -it app /bin/sh
+	docker exec -it transferit /bin/sh

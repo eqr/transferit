@@ -51,9 +51,9 @@ func New(cfg *config.Config, authCfg *authConfig.Config) (*Server, error) {
 		return nil, fmt.Errorf("cannot set up internal service: %w", err)
 	}
 
-	tranferService := service.New()
+	transferService := service.New()
 
-	if err := rpc.Register(tranferService); err != nil {
+	if err := rpc.Register(transferService); err != nil {
 		return nil, fmt.Errorf("cannot set up transfer service: %w", err)
 	}
 
@@ -67,7 +67,7 @@ func New(cfg *config.Config, authCfg *authConfig.Config) (*Server, error) {
 func (srv *Server) Start() error {
 	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", srv.internalPort))
 	if err != nil {
-		return fmt.Errorf("error running internal service: %w", err.Error())
+		return fmt.Errorf("error running internal service: %w", err)
 	}
 
 	defer listener.Close()
@@ -75,7 +75,7 @@ func (srv *Server) Start() error {
 
 	transferListener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 8083))
 	if err != nil {
-		return fmt.Errorf("error running transfer service: %w", err.Error())
+		return fmt.Errorf("error running transfer service: %w", err)
 	}
 
 	defer transferListener.Close()

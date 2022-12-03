@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/rpc"
 	"os"
@@ -22,20 +23,21 @@ func upload(filePath string, c *rpc.Client) error {
 
 	initReq := &service.InitUploadRequest{}
 	initResp := &service.InitUploadResponse{}
-	err = c.Call("InitUpload", initReq, initResp)
+	err = c.Call("Service.InitUpload", initReq, initResp)
 	if err != nil {
 		return fmt.Errorf("cannot init upload file %s: %w", filePath, err)
 	}
 
 	for {
-		bytesRead, err := f.Read(buf)
-		if err != nil {
-			return fmt.Errorf("cannot read file: %w", err)
+		_, err := f.Read(buf)
+
+		if err == io.EOF {
+			log.Printf("reached end of file %s", filePath)
+			return nil
 		}
 
-		if bytesRead == 0 {
-			log.Printf("reached end of file %s", filePath)
-			break
+		if err != nil {
+			return fmt.Errorf("cannot read file: %w", err)
 		}
 
 		log.Printf("sending batch %d of file %s", batchNumber, filePath)

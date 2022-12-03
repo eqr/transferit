@@ -21,7 +21,7 @@ type InitUploadResponse struct {
 type CurrentSegment struct {
 	Number     int
 	LastNumber int
-	Data       []byte
+	Data       string // base64 encoded file segment
 }
 
 const nullCurrentSegmentID = -1
@@ -34,7 +34,7 @@ func (s *Service) setNullCurrentSegment(transferID TransferID) error {
 
 	segment.LastNumber = segment.Number
 	segment.Number = nullCurrentSegmentID
-	segment.Data = nil
+	segment.Data = ""
 
 	s.data[transferID] = segment
 	return nil
@@ -42,7 +42,7 @@ func (s *Service) setNullCurrentSegment(transferID TransferID) error {
 
 func New() *Service {
 	data := make(map[TransferID]CurrentSegment)
-	lock := &sync.Mutex{}
+	lock := &sync.RWMutex{}
 
 	return &Service{
 		data: data,
@@ -52,7 +52,7 @@ func New() *Service {
 
 type Service struct {
 	data map[TransferID]CurrentSegment
-	lock *sync.Mutex
+	lock *sync.RWMutex
 }
 
 func (s *Service) InitUpload(request *InitUploadRequest, response *InitUploadResponse) error {
@@ -64,19 +64,28 @@ func (s *Service) InitUpload(request *InitUploadRequest, response *InitUploadRes
 }
 
 type UploadChunkRequest struct {
-	TransferID
+	TransferID  string
 	ChunkNumber int
-	Content     []byte
+	Content     string // base64 segment content
 }
 
 type UploadChunkResponse struct {
 }
 
-func (s *Service) UploadChunk(request *UploadChunkRequest, response *UploadChunkResponse) error {
+func (s *Service) UploadChunk(request *UploadChunkRequest, _ *UploadChunkResponse) error {
+	if len(request.Content) > 3.5*1024*1024 {
+		return fmt.Errorf("refejcted, chunk %d is too big (%d)", request.ChunkNumber, len(request.Content))
+	}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	segment, ok := s.data[request.TransferID]
+	trID, err := uuid.Parse(request.TransferID)
+	if err != nil {
+		return fmt.Errorf("cannot parse transfer id %s: %w", request.TransferID, err)
+	}
+
+	segment, ok := s.data[trID]
 	if ok {
 		return fmt.Errorf("transfer id was not found: %q", request)
 	}
@@ -85,7 +94,7 @@ func (s *Service) UploadChunk(request *UploadChunkRequest, response *UploadChunk
 		return fmt.Errorf("segment was not yet downloaded")
 	}
 
-	s.data[request.TransferID] = CurrentSegment{Number: request.ChunkNumber, Data: request.Content}
+	s.data[trID] = CurrentSegment{Number: request.ChunkNumber, Data: request.Content}
 	return nil
 }
 
@@ -97,12 +106,12 @@ type DownloadChunkRequest struct {
 type DownloadChunkResponse struct {
 	TransferID
 	ChunkNumber int
-	Data        []byte
+	Data        string // base64 encoded file segment
 }
 
 func (s *Service) DownloadChunk(request *DownloadChunkRequest, response *DownloadChunkResponse) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 
 	segment, ok := s.data[request.TransferID]
 	if !ok {

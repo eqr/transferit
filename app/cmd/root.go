@@ -8,6 +8,7 @@ import (
 
 	authCmd "github.com/eqr/eqr-auth/cmd"
 	authConfig "github.com/eqr/eqr-auth/config"
+	"github.com/eqr/transferit/app/cmd"
 	"github.com/eqr/transferit/app/config"
 	"github.com/eqr/transferit/app/server"
 
@@ -49,6 +50,8 @@ var ConfigPath string
 
 func Build() {
 	authCmd.BuildUserManager()
+	cmd.BuildFileManager()
 	RootCmd.PersistentFlags().StringVarP(&ConfigPath, "config", "c", "./config.yml", "path to the configuration file")
 	RootCmd.AddCommand(authCmd.UserManagerCmd)
+	RootCmd.AddCommand(cmd.FileManager)
 }

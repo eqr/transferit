@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type TransferID uuid.UUID4
+type TransferID = uuid.UUID
 
 type InitUploadRequest struct {
 	NumOfChunks int
@@ -19,11 +19,26 @@ type InitUploadResponse struct {
 }
 
 type CurrentSegment struct {
-	Number int
-	Data   []byte
+	Number     int
+	LastNumber int
+	Data       []byte
 }
 
-var nullCurrentSegment = CurrentSegment{Number: -1}
+const nullCurrentSegmentID = -1
+
+func (s *Service) setNullCurrentSegment(transferID TransferID) error {
+	segment, ok := s.data[transferID]
+	if !ok {
+		return fmt.Errorf("transfer not running: %v", transferID)
+	}
+
+	segment.LastNumber = segment.Number
+	segment.Number = nullCurrentSegmentID
+	segment.Data = nil
+
+	s.data[transferID] = segment
+	return nil
+}
 
 func New() *Service {
 	data := make(map[TransferID]CurrentSegment)
@@ -66,7 +81,7 @@ func (s *Service) UploadChunk(request *UploadChunkRequest, response *UploadChunk
 		return fmt.Errorf("transfer id was not found: %q", request)
 	}
 
-	if segment.Number != nullCurrentSegment.Number {
+	if segment.Number != nullCurrentSegmentID {
 		return fmt.Errorf("segment was not yet downloaded")
 	}
 
@@ -94,7 +109,7 @@ func (s *Service) DownloadChunk(request *DownloadChunkRequest, response *Downloa
 		return fmt.Errorf("cannot find tranfer with id %v", request.TransferID)
 	}
 
-	if segment.Number == nullCurrentSegment.Number {
+	if segment.Number == nullCurrentSegmentID {
 		return fmt.Errorf("the segment %q was not uploaded yet", request)
 	}
 
@@ -125,7 +140,10 @@ func (s *Service) ConfirmChunkDownloaded(request *ConfirmChunkDownloadedRequest,
 		return nil
 	}
 
-	s.data[request.TransferID] = nullCurrentSegment
+	if err := s.setNullCurrentSegment(request.TransferID); err != nil {
+		return fmt.Errorf("cannot set null current segment: %w", err)
+	}
+
 	return nil
 }
 
@@ -146,7 +164,7 @@ func (s *Service) GetCurrentSegmentNumber(request *GetCurrentSegmentNumberReques
 		return fmt.Errorf("transfer with id %q does not exist", request.TransferID)
 	}
 
-	if segment.Number == nullCurrentSegment.Number {
+	if segment.Number == nullCurrentSegmentID {
 		return fmt.Errorf("transfer is not initialized yet")
 	}
 

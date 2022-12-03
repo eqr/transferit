@@ -13,8 +13,9 @@ import (
 	"github.com/eqr/eqr-auth/auth"
 	authConfig "github.com/eqr/eqr-auth/config"
 	authController "github.com/eqr/eqr-auth/controller"
-	"github.com/eqr/eqr-auth/service"
+	authService "github.com/eqr/eqr-auth/service"
 	"github.com/eqr/transferit/app/config"
+	"github.com/eqr/transferit/app/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,8 +47,14 @@ func New(cfg *config.Config, authCfg *authConfig.Config) (*Server, error) {
 	url := fmt.Sprintf("%v:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Println("running server on ", url)
 
-	if err := service.SetupRpc(loginService); err != nil {
+	if err := authService.SetupRpc(loginService); err != nil {
 		return nil, fmt.Errorf("cannot set up internal service: %w", err)
+	}
+
+	tranferService := service.New()
+
+	if err := rpc.Register(tranferService); err != nil {
+		return nil, fmt.Errorf("cannot set up transfer service: %w", err)
 	}
 
 	return &Server{
@@ -60,12 +67,19 @@ func New(cfg *config.Config, authCfg *authConfig.Config) (*Server, error) {
 func (srv *Server) Start() error {
 	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", srv.internalPort))
 	if err != nil {
-		log.Fatal("error running internal service: ", err.Error())
-		return err
+		return fmt.Errorf("error running internal service: %w", err.Error())
 	}
 
 	defer listener.Close()
 	go rpc.Accept(listener)
+
+	transferListener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 8083))
+	if err != nil {
+		return fmt.Errorf("error running transfer service: %w", err.Error())
+	}
+
+	defer transferListener.Close()
+	go rpc.Accept(transferListener)
 
 	err = srv.router.Run(srv.url)
 	if err != nil {
